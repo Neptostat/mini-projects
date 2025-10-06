@@ -1,0 +1,24 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<suite name="Selenium POM Starter" verbose="1" parallel="false">
+  <test name="UI Tests">
+    <groups>
+      <run>
+        <exclude name="bad"/>
+      </run>
+    </groups>
+    <classes>
+      <class name="com.example.tests.LoginTest"/>
+    </classes>
+  </test>
+
+  <test name="Bad Examples" verbose="1">
+    <groups>
+      <run>
+        <include name="bad"/>
+      </run>
+    </groups>
+    <classes>
+      <class name="com.example.tests.bad.BadPracticeTest"/>
+    </classes>
+  </test>
+</suite>
