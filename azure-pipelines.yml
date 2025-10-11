@@ -1,22 +1,42 @@
-# Maven
-# Build your Java project and run tests with Apache Maven.
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/java
-
 trigger:
-- master
+  branches: { include: [ master ] }
+  paths:    { include: [ selenium-soc/** ] }
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'ubuntu-latest'
+
+variables:
+  mavenCache: '$(Pipeline.Workspace)/.m2'
+  socPom: '$(Build.SourcesDirectory)/selenium-soc/pom.xml'
 
 steps:
-- task: Maven@3
-  inputs:
-    mavenPomFile: 'pom.xml'
-    mavenOptions: '-Xmx3072m'
-    javaHomeOption: 'JDKVersion'
-    jdkVersionOption: '1.11'
-    jdkArchitectureOption: 'x64'
-    publishJUnitResults: true
-    testResultsFiles: '**/surefire-reports/TEST-*.xml'
-    goals: 'package'
+  - checkout: self
+
+  - script: |
+      echo "Sources dir: $(Build.SourcesDirectory)"
+      ls -la $(Build.SourcesDirectory)
+      ls -la $(Build.SourcesDirectory)/selenium-soc || true
+      test -f "$(socPom)" && echo "POM found: $(socPom)" || (echo "POM NOT FOUND" && exit 1)
+    displayName: "Verify repository layout"
+
+  - task: Cache@2
+    displayName: 'Cache Maven repo'
+    inputs:
+      key: 'maven | "$(Agent.OS)" | **/pom.xml'
+      path: '$(mavenCache)'
+      restoreKeys: |
+        maven | "$(Agent.OS)"
+
+  - task: Maven@4
+    displayName: 'Maven clean test (selenium-soc)'
+    inputs:
+      mavenPomFile: '$(socPom)'              # <-- explicit full path
+      goals: 'clean test'
+      options: >-
+        -Denv=local -Dbrowser=chrome -Dheadless=true
+        -Dmaven.repo.local=$(mavenCache)
+      publishJUnitResults: true
+      testResultsFiles: '**/surefire-reports/TEST-*.xml'
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: '1.17'
+      mavenOptions: '-Xmx1024m'
