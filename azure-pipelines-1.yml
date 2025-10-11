@@ -7,12 +7,16 @@ pool:
 
 variables:
   workingDirectory: 'selenium-soc'
+  mavenCache: '$(Pipeline.Workspace)/.m2'
 
 steps:
+  - checkout: self
+
   - task: Cache@2
+    displayName: 'Cache Maven repo'
     inputs:
       key: 'maven | "$(Agent.OS)" | **/pom.xml'
-      path: ~/.m2/repository
+      path: '$(mavenCache)'
       restoreKeys: |
         maven | "$(Agent.OS)"
 
@@ -21,15 +25,11 @@ steps:
     inputs:
       mavenPomFile: '$(workingDirectory)/pom.xml'
       goals: 'clean test'
-      options: '-Denv=local -Dbrowser=chrome -Dheadless=true'
+      options: >-
+        -Denv=local -Dbrowser=chrome -Dheadless=true
+        -Dmaven.repo.local=$(mavenCache)
       publishJUnitResults: true
       testResultsFiles: '**/surefire-reports/TEST-*.xml'
-      javaHomeOption: 'JDKVersion'     # use preinstalled JDK on the agent
-      jdkVersionOption: '1.17'         # pick Java 17
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: '1.17'
       mavenOptions: '-Xmx1024m'
-
-  - task: PublishBuildArtifacts@1
-    inputs:
-      PathtoPublish: '$(workingDirectory)/target/surefire-reports'
-      ArtifactName: 'surefire-reports'
-    condition: succeededOrFailed()
