@@ -6,11 +6,18 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  workingDirectory: 'selenium-soc'
   mavenCache: '$(Pipeline.Workspace)/.m2'
+  socPom: '$(Build.SourcesDirectory)/selenium-soc/pom.xml'
 
 steps:
   - checkout: self
+
+  - script: |
+      echo "Sources dir: $(Build.SourcesDirectory)"
+      ls -la $(Build.SourcesDirectory)
+      ls -la $(Build.SourcesDirectory)/selenium-soc || true
+      test -f "$(socPom)" && echo "POM found: $(socPom)" || (echo "POM NOT FOUND" && exit 1)
+    displayName: "Verify repository layout"
 
   - task: Cache@2
     displayName: 'Cache Maven repo'
@@ -21,9 +28,9 @@ steps:
         maven | "$(Agent.OS)"
 
   - task: Maven@4
-    displayName: 'Maven clean test in $(workingDirectory)'
+    displayName: 'Maven clean test (selenium-soc)'
     inputs:
-      mavenPomFile: '$(workingDirectory)/pom.xml'
+      mavenPomFile: '$(socPom)'              # <-- explicit full path
       goals: 'clean test'
       options: >-
         -Denv=local -Dbrowser=chrome -Dheadless=true
