@@ -1,0 +1,35 @@
+trigger:
+  branches: { include: [ master ] }
+  paths:    { include: [ selenium-soc/** ] }
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  workingDirectory: 'selenium-soc'
+
+steps:
+  - task: Cache@2
+    inputs:
+      key: 'maven | "$(Agent.OS)" | **/pom.xml'
+      path: ~/.m2/repository
+      restoreKeys: |
+        maven | "$(Agent.OS)"
+
+  - task: Maven@4
+    displayName: 'Maven clean test in $(workingDirectory)'
+    inputs:
+      mavenPomFile: '$(workingDirectory)/pom.xml'
+      goals: 'clean test'
+      options: '-Denv=local -Dbrowser=chrome -Dheadless=true'
+      publishJUnitResults: true
+      testResultsFiles: '**/surefire-reports/TEST-*.xml'
+      javaHomeOption: 'JDKVersion'     # use preinstalled JDK on the agent
+      jdkVersionOption: '1.17'         # pick Java 17
+      mavenOptions: '-Xmx1024m'
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      PathtoPublish: '$(workingDirectory)/target/surefire-reports'
+      ArtifactName: 'surefire-reports'
+    condition: succeededOrFailed()
