@@ -1,0 +1,49 @@
+# Build & test ONLY selenium-soc
+
+trigger:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - selenium-soc/**     # only run when this folder changes
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  workingDirectory: 'selenium-soc'
+
+steps:
+  - task: UseJavaVersion@1
+    inputs:
+      versionSpec: '17'
+      distribution: 'temurin'
+
+  # (Optional) Cache your Maven repo for faster runs
+  - task: Cache@2
+    inputs:
+      key: 'maven | "$(Agent.OS)" | **/pom.xml'
+      path: ~/.m2/repository
+      restoreKeys: |
+        maven | "$(Agent.OS)"
+
+  - task: Maven@4
+    displayName: 'Maven clean test in $(workingDirectory)'
+    inputs:
+      mavenPomFile: '$(workingDirectory)/pom.xml'
+      goals: 'clean test'
+      options: '-Denv=local -Dbrowser=chrome -Dheadless=true'
+      publishJUnitResults: true
+      testResultsFiles: '**/surefire-reports/TEST-*.xml'
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: '1.17'
+      mavenOptions: '-Xmx1024m'
+
+  # (Optional) publish surefire reports as a pipeline artifact
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish target/surefire-reports'
+    inputs:
+      PathtoPublish: '$(workingDirectory)/target/surefire-reports'
+      ArtifactName: 'surefire-reports'
+    condition: succeededOrFailed()
