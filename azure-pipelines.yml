@@ -14,7 +14,6 @@ steps:
 
   - script: |
       echo "Sources dir: $(Build.SourcesDirectory)"
-      ls -la $(Build.SourcesDirectory)
       ls -la $(Build.SourcesDirectory)/selenium-soc || true
       test -f "$(socPom)" && echo "POM found: $(socPom)" || (echo "POM NOT FOUND" && exit 1)
     displayName: "Verify repository layout"
@@ -30,13 +29,43 @@ steps:
   - task: Maven@4
     displayName: 'Maven clean test (selenium-soc)'
     inputs:
-      mavenPomFile: '$(socPom)'              # <-- explicit full path
+      mavenPomFile: '$(socPom)'
       goals: 'clean test'
       options: >-
         -Denv=local -Dbrowser=chrome -Dheadless=true
         -Dmaven.repo.local=$(mavenCache)
       publishJUnitResults: true
-      testResultsFiles: '**/surefire-reports/TEST-*.xml'
+      testResultsFiles: '**/surefire-reports/TEST-*.xml'  # JUnit-style files
       javaHomeOption: 'JDKVersion'
       jdkVersionOption: '1.17'
       mavenOptions: '-Xmx1024m'
+
+  # (Nice to have) prove the XMLs exist
+  - script: |
+      echo "Checking for surefire reports…"
+      find $(Build.SourcesDirectory)/selenium-soc -type f -name "TEST-*.xml" -printf "%p\n" || echo "No reports found"
+    displayName: "Verify surefire reports"
+    condition: always()
+
+  # Explicit publish so results show even if tests fail
+  - task: PublishTestResults@2
+    displayName: 'Publish JUnit test results'
+    condition: always()
+    inputs:
+      testResultsFormat: 'JUnit'
+      testResultsFiles: |
+        **/surefire-reports/TEST-*.xml
+        **/testng-results.xml
+      searchFolder: '$(System.DefaultWorkingDirectory)'
+      mergeTestResults: true
+      failTaskOnFailedTests: false
+      testRunTitle: 'selenium-soc • $(Build.SourceBranchName) • #$(Build.BuildNumber)'
+
+  # Optional: keep raw reports (HTML, screenshots, logs)
+  - task: PublishBuildArtifacts@1
+    displayName: 'Attach surefire reports'
+    condition: always()
+    inputs:
+      PathtoPublish: '$(Build.SourcesDirectory)/selenium-soc/target/surefire-reports'
+      ArtifactName: 'surefire-reports'
+      publishLocation: 'Container'
