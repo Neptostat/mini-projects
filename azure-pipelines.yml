@@ -26,54 +26,51 @@ steps:
       restoreKeys: |
         maven | "$(Agent.OS)"
 
+  # Use 'verify' so both Surefire (unit) and Failsafe (integration) phases run
   - task: Maven@4
-    displayName: 'Maven clean test (selenium-soc)'
+    displayName: 'Maven clean verify (selenium-soc)'
     inputs:
       mavenPomFile: '$(socPom)'
-      goals: 'clean test'
+      goals: 'clean verify'
       options: >-
         -Denv=local -Dbrowser=chrome -Dheadless=true
         -Dmaven.repo.local=$(mavenCache)
-      publishJUnitResults: true
-      testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        -DskipTests=false -DskipITs=false
+        -Dsurefire.printSummary=true
+        -Dfailsafe.printSummary=true
+        -DtrimStackTrace=false
+        -DfailIfNoTests=false
+      publishJUnitResults: false    # we'll do an explicit publish below
       javaHomeOption: 'JDKVersion'
       jdkVersionOption: '1.17'
       mavenOptions: '-Xmx1024m'
 
-  # Discover where reports landed and set variables for conditional artifact publish
+  # Show where reports actually landed and set flags
   - script: |
       echo "Looking for test reports..."
       find "$(Build.SourcesDirectory)" -type d \( -name "surefire-reports" -o -name "failsafe-reports" \) -print || true
       find "$(Build.SourcesDirectory)" -type f \( -name "TEST-*.xml" -o -name "testng-results.xml" \) -print || true
 
-      # Set vars for artifact steps
-      if compgen -G "$(Build.SourcesDirectory)/selenium-soc/target/surefire-reports/TEST-*.xml" > /dev/null; then
-        echo "Found surefire XMLs"
+      # Set variables for conditional artifact steps
+      if compgen -G "$(Build.SourcesDirectory)/selenium-soc/**/surefire-reports/TEST-*.xml" > /dev/null; then
         echo "##vso[task.setvariable variable=hasSurefire]true"
       else
-        echo "No surefire XMLs"
         echo "##vso[task.setvariable variable=hasSurefire]false"
       fi
-
-      if compgen -G "$(Build.SourcesDirectory)/selenium-soc/target/failsafe-reports/TEST-*.xml" > /dev/null; then
-        echo "Found failsafe XMLs"
+      if compgen -G "$(Build.SourcesDirectory)/selenium-soc/**/failsafe-reports/TEST-*.xml" > /dev/null; then
         echo "##vso[task.setvariable variable=hasFailsafe]true"
       else
-        echo "No failsafe XMLs"
         echo "##vso[task.setvariable variable=hasFailsafe]false"
       fi
-
       if [ -f "$(Build.SourcesDirectory)/selenium-soc/target/site/jacoco/jacoco.xml" ]; then
-        echo "Found JaCoCo report"
         echo "##vso[task.setvariable variable=hasJacoco]true"
       else
-        echo "No JaCoCo report"
         echo "##vso[task.setvariable variable=hasJacoco]false"
       fi
     displayName: "Locate reports & set variables"
     condition: always()
 
-  # Publish results to the Tests tab (JUnit/TestNG)
+  # Publish to Tests tab (covers Surefire, Failsafe, TestNG)
   - task: PublishTestResults@2
     displayName: 'Publish JUnit/TestNG results'
     condition: always()
@@ -88,7 +85,7 @@ steps:
       failTaskOnFailedTests: false
       testRunTitle: 'selenium-soc • $(Build.SourceBranchName) • #$(Build.BuildNumber)'
 
-  # Upload raw report folders only if we actually found them
+  # Upload raw folders only if present
   - task: PublishBuildArtifacts@1
     displayName: 'Attach surefire reports'
     condition: and(always(), eq(variables.hasSurefire, 'true'))
@@ -105,7 +102,7 @@ steps:
       ArtifactName: 'failsafe-reports'
       publishLocation: 'Container'
 
-  # Optional coverage, only if the XML exists
+  # Optional: publish JaCoCo if present
   - task: PublishCodeCoverageResults@2
     displayName: 'Publish JaCoCo coverage'
     condition: and(always(), eq(variables.hasJacoco, 'true'))
