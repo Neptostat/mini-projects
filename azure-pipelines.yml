@@ -35,37 +35,65 @@ steps:
         -Denv=local -Dbrowser=chrome -Dheadless=true
         -Dmaven.repo.local=$(mavenCache)
       publishJUnitResults: true
-      testResultsFiles: '**/surefire-reports/TEST-*.xml'  # JUnit-style files
+      testResultsFiles: '**/surefire-reports/TEST-*.xml'   # JUnit files (Surefire/Failsafe handled below)
       javaHomeOption: 'JDKVersion'
       jdkVersionOption: '1.17'
       mavenOptions: '-Xmx1024m'
 
-  # (Nice to have) prove the XMLs exist
+  # Show exactly where reports went
   - script: |
-      echo "Checking for surefire reports…"
-      find $(Build.SourcesDirectory)/selenium-soc -type f -name "TEST-*.xml" -printf "%p\n" || echo "No reports found"
-    displayName: "Verify surefire reports"
+      echo "Looking for test reports..."
+      find "$(Build.SourcesDirectory)" -type d \( -name "surefire-reports" -o -name "failsafe-reports" \) -print
+      find "$(Build.SourcesDirectory)" -type f \( -name "TEST-*.xml" -o -name "testng-results.xml" \) -print
+    displayName: "Locate test report files"
     condition: always()
 
-  # Explicit publish so results show even if tests fail
+  # Publish to the Tests tab (works for Surefire, Failsafe, and TestNG XML)
   - task: PublishTestResults@2
-    displayName: 'Publish JUnit test results'
+    displayName: 'Publish JUnit/TestNG results'
     condition: always()
     inputs:
       testResultsFormat: 'JUnit'
       testResultsFiles: |
         **/surefire-reports/TEST-*.xml
+        **/failsafe-reports/TEST-*.xml
         **/testng-results.xml
       searchFolder: '$(System.DefaultWorkingDirectory)'
       mergeTestResults: true
       failTaskOnFailedTests: false
       testRunTitle: 'selenium-soc • $(Build.SourceBranchName) • #$(Build.BuildNumber)'
 
-  # Optional: keep raw reports (HTML, screenshots, logs)
+  # Upload raw report folders only if they exist
   - task: PublishBuildArtifacts@1
-    displayName: 'Attach surefire reports'
-    condition: always()
+    displayName: 'Attach surefire reports (if present)'
+    condition: and(always(), exists('$(Build.SourcesDirectory)/selenium-soc/target/surefire-reports'))
     inputs:
       PathtoPublish: '$(Build.SourcesDirectory)/selenium-soc/target/surefire-reports'
       ArtifactName: 'surefire-reports'
       publishLocation: 'Container'
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Attach failsafe reports (if present)'
+    condition: and(always(), exists('$(Build.SourcesDirectory)/selenium-soc/target/failsafe-reports'))
+    inputs:
+      PathtoPublish: '$(Build.SourcesDirectory)/selenium-soc/target/failsafe-reports'
+      ArtifactName: 'failsafe-reports'
+      publishLocation: 'Container'
+
+  # Optional: publish screenshots/logs if your framework writes them
+  - task: PublishBuildArtifacts@1
+    displayName: 'Attach Selenium artifacts (if present)'
+    condition: and(always(), exists('$(Build.SourcesDirectory)/selenium-soc/target/screenshots'))
+    inputs:
+      PathtoPublish: '$(Build.SourcesDirectory)/selenium-soc/target/screenshots'
+      ArtifactName: 'selenium-artifacts'
+      publishLocation: 'Container'
+
+  # Optional: JaCoCo coverage (guarded so it won’t fail if missing)
+  - task: PublishCodeCoverageResults@2
+    displayName: 'Publish JaCoCo coverage (if present)'
+    condition: and(always(), exists('$(Build.SourcesDirectory)/selenium-soc/target/site/jacoco/jacoco.xml'))
+    inputs:
+      codeCoverageTool: 'JaCoCo'
+      summaryFileLocation: '$(Build.SourcesDirectory)/selenium-soc/target/site/jacoco/jacoco.xml'
+      reportDirectory: '$(Build.SourcesDirectory)/selenium-soc/target/site/jacoco'
