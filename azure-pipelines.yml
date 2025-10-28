@@ -10,8 +10,7 @@ trigger:
 
 pool:
   name: Default
-  demands:
-    - agent.name -equals mypool   # agent name as shown in the UI
+
 
 variables:
   mavenCache: '$(Pipeline.Workspace)/.m2'
