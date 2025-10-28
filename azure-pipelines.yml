@@ -31,13 +31,14 @@ steps:
     test -f "$(socPom)" && echo "POM found: $(socPom)" || (echo "POM NOT FOUND" && exit 1)
   displayName: "Verify repository layout"
 
-  - task: Cache@2
-    displayName: 'Cache Maven repo'
-    inputs:
-      key: 'maven | "$(Agent.OS)" | **/pom.xml'
-      path: '$(mavenCache)'
-      restoreKeys: |
-        maven | "$(Agent.OS)"
+- task: Cache@2
+  displayName: 'Cache Maven repo'
+  inputs:
+    key: 'maven | "$(Agent.OS)" | **/pom.xml'
+    path: '$(mavenCache)'
+    restoreKeys: |
+      maven | "$(Agent.OS)"
+      maven
 
   # Use 'verify' so both Surefire (unit) and Failsafe (integration) phases run
   - task: Maven@4
