@@ -1,8 +1,10 @@
 trigger:
   branches:
-    include: [ master ]
+    include: 
+      - master
   paths:
-    include: [ selenium-soc/** ]
+    include: 
+      - selenium-soc/**
 
 #pool:
 #  vmImage: 'ubuntu-latest'
@@ -16,125 +18,124 @@ variables:
   javaHome: '/usr/lib/jvm/java-17-openjdk-amd64'   # <-- local JDK path
 
 steps:
-  - checkout: self
+- checkout: self
 
-  - script: |
-      echo "Running on: $(Agent.Name)"
-      echo "Machine: $(Agent.MachineName)"
-      uname -a
-      df -h | head -n 10
-    displayName: "Verify self-hosted agent"
+- script: |
+    echo "Running on: $(Agent.Name)"
+    echo "Machine: $(Agent.MachineName)"
+    uname -a
+    df -h | head -n 10
+  displayName: "Verify self-hosted agent"
 
-  - script: |
-      echo "Sources dir: $(Build.SourcesDirectory)"
-      ls -la "$(Build.SourcesDirectory)/selenium-soc" || true
-      test -f "$(socPom)" && echo "POM found: $(socPom)" || (echo "POM NOT FOUND" && exit 1)
-    displayName: "Verify repository layout"
+- script: |
+    echo "Sources dir: $(Build.SourcesDirectory)"
+    ls -la "$(Build.SourcesDirectory)/selenium-soc" || true
+    test -f "$(socPom)" && echo "POM found: $(socPom)" || (echo "POM NOT FOUND" && exit 1)
+  displayName: "Verify repository layout"
 
-  - task: Cache@2
-    displayName: 'Cache Maven repo'
-    inputs:
-      key: 'maven | "$(Agent.OS)" | **/pom.xml'
-      path: '$(mavenCache)'
-      restoreKeys: |
-        maven | "$(Agent.OS)"
-        maven
-  - task: UseJavaVersion@1
-    inputs:
-      versionSpec: '17'
-      architecture: 'x64'
+- task: Cache@2
+  displayName: 'Cache Maven repo'
+  inputs:
+    key: 'maven | "$(Agent.OS)" | **/pom.xml'
+    path: '$(mavenCache)'
+    restoreKeys: |
+      maven | "$(Agent.OS)"
+      maven
 
-  - task: Maven@4
-    displayName: Maven clean verify
-    inputs:
-      mavenPomFile: '$(socPom)'
-      goals: 'clean verify'
-      javaHomeOption: 'Path'
-      jdkDirectory: '/usr/lib/jvm/java-17-openjdk-amd64'
-      jdkArchitectureOption: 'x64'
+- task: UseJavaVersion@1
+  inputs:
+    versionSpec: '17'
+    architecture: 'x64'
 
+- task: Maven@4
+  displayName: 'Maven clean verify (path)'
+  inputs:
+    mavenPomFile: '$(socPom)'
+    goals: 'clean verify'
+    javaHomeOption: 'Path'
+    jdkDirectory: '/usr/lib/jvm/java-17-openjdk-amd64'
+    jdkArchitectureOption: 'x64'
 
-  # Use 'verify' so both Surefire (unit) and Failsafe (integration) phases run
-  - task: Maven@4
-    displayName: 'Maven clean verify (selenium-soc)'
-    inputs:
-      mavenPomFile: '$(socPom)'
-      goals: 'clean verify'
-      options: >-
-        -Denv=local -Dbrowser=chrome -Dheadless=true
-        -Dmaven.repo.local=$(mavenCache)
-        -DskipTests=false -DskipITs=false
-        -Dsurefire.printSummary=true
-        -Dfailsafe.printSummary=true
-        -DtrimStackTrace=false
-        -DfailIfNoTests=false
-      publishJUnitResults: false    # we'll do an explicit publish below
-      javaHomeOption: 'JDKVersion'
-      jdkVersionOption: '1.17'
-      mavenOptions: '-Xmx1024m'
+# Use 'verify' so both Surefire (unit) and Failsafe (integration) phases run
+- task: Maven@4
+  displayName: 'Maven clean verify (selenium-soc)'
+  inputs:
+    mavenPomFile: '$(socPom)'
+    goals: 'clean verify'
+    options: >-
+      -Denv=local -Dbrowser=chrome -Dheadless=true
+      -Dmaven.repo.local=$(mavenCache)
+      -DskipTests=false -DskipITs=false
+      -Dsurefire.printSummary=true
+      -Dfailsafe.printSummary=true
+      -DtrimStackTrace=false
+      -DfailIfNoTests=false
+    publishJUnitResults: false
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '1.17'
+    mavenOptions: '-Xmx1024m'
 
-  # Show where reports actually landed and set flags
-  - script: |
-      echo "Looking for test reports..."
-      find "$(Build.SourcesDirectory)" -type d \( -name "surefire-reports" -o -name "failsafe-reports" \) -print || true
-      find "$(Build.SourcesDirectory)" -type f \( -name "TEST-*.xml" -o -name "testng-results.xml" \) -print || true
+- script: |
+    echo "Looking for test reports..."
+    find "$(Build.SourcesDirectory)" -type d \( -name "surefire-reports" -o -name "failsafe-reports" \) -print || true
+    find "$(Build.SourcesDirectory)" -type f \( -name "TEST-*.xml" -o -name "testng-results.xml" \) -print || true
 
-      # Set variables for conditional artifact steps
-      if compgen -G "$(Build.SourcesDirectory)/selenium-soc/**/surefire-reports/TEST-*.xml" > /dev/null; then
-        echo "##vso[task.setvariable variable=hasSurefire]true"
-      else
-        echo "##vso[task.setvariable variable=hasSurefire]false"
-      fi
-      if compgen -G "$(Build.SourcesDirectory)/selenium-soc/**/failsafe-reports/TEST-*.xml" > /dev/null; then
-        echo "##vso[task.setvariable variable=hasFailsafe]true"
-      else
-        echo "##vso[task.setvariable variable=hasFailsafe]false"
-      fi
-      if [ -f "$(Build.SourcesDirectory)/selenium-soc/target/site/jacoco/jacoco.xml" ]; then
-        echo "##vso[task.setvariable variable=hasJacoco]true"
-      else
-        echo "##vso[task.setvariable variable=hasJacoco]false"
-      fi
-    displayName: "Locate reports & set variables"
-    condition: always()
+    # Set variables for conditional artifact steps
+    if compgen -G "$(Build.SourcesDirectory)/selenium-soc/**/surefire-reports/TEST-*.xml" > /dev/null; then
+      echo "##vso[task.setvariable variable=hasSurefire]true"
+    else
+      echo "##vso[task.setvariable variable=hasSurefire]false"
+    fi
+    if compgen -G "$(Build.SourcesDirectory)/selenium-soc/**/failsafe-reports/TEST-*.xml" > /dev/null; then
+      echo "##vso[task.setvariable variable=hasFailsafe]true"
+    else
+      echo "##vso[task.setvariable variable=hasFailsafe]false"
+    fi
+    if [ -f "$(Build.SourcesDirectory)/selenium-soc/target/site/jacoco/jacoco.xml" ]; then
+      echo "##vso[task.setvariable variable=hasJacoco]true"
+    else
+      echo "##vso[task.setvariable variable=hasJacoco]false"
+    fi
+  displayName: "Locate reports & set variables"
+  condition: always()
 
-  # Publish to Tests tab (covers Surefire, Failsafe, TestNG)
-  - task: PublishTestResults@2
-    displayName: 'Publish JUnit/TestNG results'
-    condition: always()
-    inputs:
-      testResultsFormat: 'JUnit'
-      testResultsFiles: |
-        **/surefire-reports/TEST-*.xml
-        **/failsafe-reports/TEST-*.xml
-        **/testng-results.xml
-      searchFolder: '$(System.DefaultWorkingDirectory)'
-      mergeTestResults: true
-      failTaskOnFailedTests: false
-      testRunTitle: 'selenium-soc • $(Build.SourceBranchName) • #$(Build.BuildNumber)'
+# Publish to Tests tab (covers Surefire, Failsafe, TestNG)
+- task: PublishTestResults@2
+  displayName: 'Publish JUnit/TestNG results'
+  condition: always()
+  inputs:
+    testResultsFormat: 'JUnit'
+    testResultsFiles: |
+      **/surefire-reports/TEST-*.xml
+      **/failsafe-reports/TEST-*.xml
+      **/testng-results.xml
+    searchFolder: '$(System.DefaultWorkingDirectory)'
+    mergeTestResults: true
+    failTaskOnFailedTests: false
+    testRunTitle: 'selenium-soc • $(Build.SourceBranchName) • #$(Build.BuildNumber)'
 
-  # Upload raw folders only if present
-  - task: PublishBuildArtifacts@1
-    displayName: 'Attach surefire reports'
-    condition: and(always(), eq(variables.hasSurefire, 'true'))
-    inputs:
-      PathtoPublish: '$(Build.SourcesDirectory)/selenium-soc/target/surefire-reports'
-      ArtifactName: 'surefire-reports'
-      publishLocation: 'Container'
+# Upload raw folders only if present
+- task: PublishBuildArtifacts@1
+  displayName: 'Attach surefire reports'
+  condition: and(always(), eq(variables.hasSurefire, 'true'))
+  inputs:
+    PathtoPublish: '$(Build.SourcesDirectory)/selenium-soc/target/surefire-reports'
+    ArtifactName: 'surefire-reports'
+    publishLocation: 'Container'
 
-  - task: PublishBuildArtifacts@1
-    displayName: 'Attach failsafe reports'
-    condition: and(always(), eq(variables.hasFailsafe, 'true'))
-    inputs:
-      PathtoPublish: '$(Build.SourcesDirectory)/selenium-soc/target/failsafe-reports'
-      ArtifactName: 'failsafe-reports'
-      publishLocation: 'Container'
+- task: PublishBuildArtifacts@1
+  displayName: 'Attach failsafe reports'
+  condition: and(always(), eq(variables.hasFailsafe, 'true'))
+  inputs:
+    PathtoPublish: '$(Build.SourcesDirectory)/selenium-soc/target/failsafe-reports'
+    ArtifactName: 'failsafe-reports'
+    publishLocation: 'Container'
 
-  # Optional: publish JaCoCo if present
-  - task: PublishCodeCoverageResults@2
-    displayName: 'Publish JaCoCo coverage'
-    condition: and(always(), eq(variables.hasJacoco, 'true'))
-    inputs:
-      codeCoverageTool: 'JaCoCo'
-      summaryFileLocation: '$(Build.SourcesDirectory)/selenium-soc/target/site/jacoco/jacoco.xml'
-      reportDirectory: '$(Build.SourcesDirectory)/selenium-soc/target/site/jacoco'
+# Optional: publish JaCoCo if present
+- task: PublishCodeCoverageResults@2
+  displayName: 'Publish JaCoCo coverage'
+  condition: and(always(), eq(variables.hasJacoco, 'true'))
+  inputs:
+    codeCoverageTool: 'JaCoCo'
+    summaryFileLocation: '$(Build.SourcesDirectory)/selenium-soc/target/site/jacoco/jacoco.xml'
+    reportDirectory: '$(Build.SourcesDirectory)/selenium-soc/target/site/jacoco'
