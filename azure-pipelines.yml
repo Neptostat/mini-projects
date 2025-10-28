@@ -58,12 +58,13 @@ steps:
       -Dfailsafe.printSummary=true
       -DtrimStackTrace=false
       -DfailIfNoTests=false
-      -Dsurefire.suiteXmlFiles=$(Build.SourcesDirectory)/selenium-soc/testing.xml
+      -Dsurefire.suiteXmlFiles=$(Build.SourcesDirectory)/selenium-soc/**testng.xml**
     publishJUnitResults: false
     mavenOptions: '-Xmx1024m'
     javaHomeOption: 'Path'
     jdkDirectory: '$(javaHome)'
     jdkArchitectureOption: 'x64'
+
 
 
 - script: |
