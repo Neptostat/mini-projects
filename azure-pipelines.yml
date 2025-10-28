@@ -8,7 +8,7 @@ trigger:
 #  vmImage: 'ubuntu-latest'
 
 pool:
-  name: Default  # No need for demands if you have a single agent
+  name: mypool  
 
 variables:
   mavenCache: '$(Pipeline.Workspace)/.m2'
