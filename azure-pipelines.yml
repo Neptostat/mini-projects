@@ -8,29 +8,34 @@ trigger:
 #pool:
 #  vmImage: 'ubuntu-latest'
 
-pool:
-  name: Default
+trigger:
+  branches:
+    include: [ master ]
+  paths:
+    include: [ selenium-soc/** ]
 
+pool:
+  name: Default  # No need for demands if you have a single agent
 
 variables:
   mavenCache: '$(Pipeline.Workspace)/.m2'
   socPom: '$(Build.SourcesDirectory)/selenium-soc/pom.xml'
 
 steps:
-  - checkout: self
+- checkout: self
 
-  - script: |
-      echo "Running on: $(Agent.Name)"
-      echo "Machine: $(Agent.MachineName)"
-      uname -a
-      df -h | head -n 10
-    displayName: "Verify self-hosted agent"
+- script: |
+    echo "Running on: $(Agent.Name)"
+    echo "Machine: $(Agent.MachineName)"
+    uname -a
+    df -h | head -n 10
+  displayName: "Verify self-hosted agent"
 
-  - script: |
-      echo "Sources dir: $(Build.SourcesDirectory)"
-      ls -la "$(Build.SourcesDirectory)/selenium-soc" || true
-      test -f "$(socPom)" && echo "POM found: $(socPom)" || (echo "POM NOT FOUND" && exit 1)
-    displayName: "Verify repository layout"
+- script: |
+    echo "Sources dir: $(Build.SourcesDirectory)"
+    ls -la "$(Build.SourcesDirectory)/selenium-soc" || true
+    test -f "$(socPom)" && echo "POM found: $(socPom)" || (echo "POM NOT FOUND" && exit 1)
+  displayName: "Verify repository layout"
 
   - task: Cache@2
     displayName: 'Cache Maven repo'
