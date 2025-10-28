@@ -21,6 +21,13 @@ steps:
 - checkout: self
 
 - script: |
+    set -e
+    echo "Expecting suite at: $(Build.SourcesDirectory)/selenium-soc/testng.xml"
+    test -f "$(Build.SourcesDirectory)/selenium-soc/testng.xml" && echo "OK: exists" || (echo "MISSING suite file" && exit 1)
+  displayName: "Verify TestNG suite file"
+
+
+- script: |
     echo "Running on: $(Agent.Name)"
     echo "Machine: $(Agent.MachineName)"
     echo "JAVA_HOME=$JAVA_HOME"
@@ -58,12 +65,13 @@ steps:
       -Dfailsafe.printSummary=true
       -DtrimStackTrace=false
       -DfailIfNoTests=false
-      -Dsurefire.suiteXmlFiles=$(Build.SourcesDirectory)/selenium-soc/**testng.xml**
+      -Dsurefire.suiteXmlFiles=$(Build.SourcesDirectory)/selenium-soc/testng.xml
     publishJUnitResults: false
     mavenOptions: '-Xmx1024m'
     javaHomeOption: 'Path'
     jdkDirectory: '$(javaHome)'
     jdkArchitectureOption: 'x64'
+
 
 
 
