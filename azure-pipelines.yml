@@ -39,19 +39,19 @@ steps:
       restoreKeys: |
         maven | "$(Agent.OS)"
         maven
-- task: UseJavaVersion@1
-  inputs:
-    versionSpec: '17'
-    architecture: 'x64'
+  - task: UseJavaVersion@1
+    inputs:
+      versionSpec: '17'
+      architecture: 'x64'
 
-- task: Maven@4
-  displayName: Maven clean verify
-  inputs:
-    mavenPomFile: '$(socPom)'
-    goals: 'clean verify'
-    javaHomeOption: 'Path'
-    jdkDirectory: '/usr/lib/jvm/java-17-openjdk-amd64'
-    jdkArchitectureOption: 'x64'
+  - task: Maven@4
+    displayName: Maven clean verify
+    inputs:
+      mavenPomFile: '$(socPom)'
+      goals: 'clean verify'
+      javaHomeOption: 'Path'
+      jdkDirectory: '/usr/lib/jvm/java-17-openjdk-amd64'
+      jdkArchitectureOption: 'x64'
 
 
   # Use 'verify' so both Surefire (unit) and Failsafe (integration) phases run
