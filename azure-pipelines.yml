@@ -1,21 +1,21 @@
 trigger:
   branches:
-    include: 
+    include:
       - master
   paths:
-    include: 
+    include:
       - selenium-soc/**
 
 #pool:
 #  vmImage: 'ubuntu-latest'
 
 pool:
-  name: mypool  
+  name: mypool
 
 variables:
   mavenCache: '$(Pipeline.Workspace)/.m2'
   socPom: '$(Build.SourcesDirectory)/selenium-soc/pom.xml'
-  javaHome: '/usr/lib/jvm/java-17-openjdk-amd64'   # <-- local JDK path
+  javaHome: '/usr/lib/jvm/java-17-openjdk-amd64'   # local JDK path
 
 steps:
 - checkout: self
@@ -23,6 +23,8 @@ steps:
 - script: |
     echo "Running on: $(Agent.Name)"
     echo "Machine: $(Agent.MachineName)"
+    echo "JAVA_HOME=$JAVA_HOME"
+    "$(javaHome)/bin/java" -version || true
     uname -a
     df -h | head -n 10
   displayName: "Verify self-hosted agent"
@@ -42,21 +44,7 @@ steps:
       maven | "$(Agent.OS)"
       maven
 
-- task: UseJavaVersion@1
-  inputs:
-    versionSpec: '17'
-    architecture: 'x64'
-
-- task: Maven@4
-  displayName: 'Maven clean verify (path)'
-  inputs:
-    mavenPomFile: '$(socPom)'
-    goals: 'clean verify'
-    javaHomeOption: 'Path'
-    jdkDirectory: '/usr/lib/jvm/java-17-openjdk-amd64'
-    jdkArchitectureOption: 'x64'
-
-# Use 'verify' so both Surefire (unit) and Failsafe (integration) phases run
+# Single Maven run using the local JDK path (no marketplace tasks)
 - task: Maven@4
   displayName: 'Maven clean verify (selenium-soc)'
   inputs:
@@ -71,9 +59,10 @@ steps:
       -DtrimStackTrace=false
       -DfailIfNoTests=false
     publishJUnitResults: false
-    javaHomeOption: 'JDKVersion'
-    jdkVersionOption: '1.17'
     mavenOptions: '-Xmx1024m'
+    javaHomeOption: 'Path'
+    jdkDirectory: '$(javaHome)'
+    jdkArchitectureOption: 'x64'
 
 - script: |
     echo "Looking for test reports..."
@@ -99,7 +88,6 @@ steps:
   displayName: "Locate reports & set variables"
   condition: always()
 
-# Publish to Tests tab (covers Surefire, Failsafe, TestNG)
 - task: PublishTestResults@2
   displayName: 'Publish JUnit/TestNG results'
   condition: always()
@@ -114,7 +102,6 @@ steps:
     failTaskOnFailedTests: false
     testRunTitle: 'selenium-soc • $(Build.SourceBranchName) • #$(Build.BuildNumber)'
 
-# Upload raw folders only if present
 - task: PublishBuildArtifacts@1
   displayName: 'Attach surefire reports'
   condition: and(always(), eq(variables.hasSurefire, 'true'))
@@ -131,7 +118,6 @@ steps:
     ArtifactName: 'failsafe-reports'
     publishLocation: 'Container'
 
-# Optional: publish JaCoCo if present
 - task: PublishCodeCoverageResults@2
   displayName: 'Publish JaCoCo coverage'
   condition: and(always(), eq(variables.hasJacoco, 'true'))
