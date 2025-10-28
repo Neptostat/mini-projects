@@ -1,9 +1,8 @@
 trigger:
-  branches: { include: [ master ] }
-  paths:    { include: [ selenium-soc/** ] }
-
-
-
+  branches:
+    include: [ master ]
+  paths:
+    include: [ selenium-soc/** ]
 
 #pool:
 #  vmImage: 'ubuntu-latest'
@@ -16,29 +15,29 @@ variables:
   socPom: '$(Build.SourcesDirectory)/selenium-soc/pom.xml'
 
 steps:
-- checkout: self
+  - checkout: self
 
-- script: |
-    echo "Running on: $(Agent.Name)"
-    echo "Machine: $(Agent.MachineName)"
-    uname -a
-    df -h | head -n 10
-  displayName: "Verify self-hosted agent"
+  - script: |
+      echo "Running on: $(Agent.Name)"
+      echo "Machine: $(Agent.MachineName)"
+      uname -a
+      df -h | head -n 10
+    displayName: "Verify self-hosted agent"
 
-- script: |
-    echo "Sources dir: $(Build.SourcesDirectory)"
-    ls -la "$(Build.SourcesDirectory)/selenium-soc" || true
-    test -f "$(socPom)" && echo "POM found: $(socPom)" || (echo "POM NOT FOUND" && exit 1)
-  displayName: "Verify repository layout"
+  - script: |
+      echo "Sources dir: $(Build.SourcesDirectory)"
+      ls -la "$(Build.SourcesDirectory)/selenium-soc" || true
+      test -f "$(socPom)" && echo "POM found: $(socPom)" || (echo "POM NOT FOUND" && exit 1)
+    displayName: "Verify repository layout"
 
-- task: Cache@2
-  displayName: 'Cache Maven repo'
-  inputs:
-    key: 'maven | "$(Agent.OS)" | **/pom.xml'
-    path: '$(mavenCache)'
-    restoreKeys: |
-      maven | "$(Agent.OS)"
-      maven
+  - task: Cache@2
+    displayName: 'Cache Maven repo'
+    inputs:
+      key: 'maven | "$(Agent.OS)" | **/pom.xml'
+      path: '$(mavenCache)'
+      restoreKeys: |
+        maven | "$(Agent.OS)"
+        maven
 
   # Use 'verify' so both Surefire (unit) and Failsafe (integration) phases run
   - task: Maven@4
