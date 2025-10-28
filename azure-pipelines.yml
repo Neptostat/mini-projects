@@ -8,12 +8,6 @@ trigger:
 #pool:
 #  vmImage: 'ubuntu-latest'
 
-trigger:
-  branches:
-    include: [ master ]
-  paths:
-    include: [ selenium-soc/** ]
-
 pool:
   name: Default  # No need for demands if you have a single agent
 
