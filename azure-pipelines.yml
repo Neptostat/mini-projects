@@ -2,8 +2,16 @@ trigger:
   branches: { include: [ master ] }
   paths:    { include: [ selenium-soc/** ] }
 
+
+
+
+#pool:
+#  vmImage: 'ubuntu-latest'
+
 pool:
-  vmImage: 'ubuntu-latest'
+  name: Default
+  demands:
+    - agent.name -equals mypool   # agent name as shown in the UI
 
 variables:
   mavenCache: '$(Pipeline.Workspace)/.m2'
@@ -11,6 +19,13 @@ variables:
 
 steps:
   - checkout: self
+
+  - script: |
+      echo "Running on: $(Agent.Name)"
+      echo "Machine: $(Agent.MachineName)"
+      uname -a
+      df -h | head -n 10
+    displayName: "Verify self-hosted agent"
 
   - script: |
       echo "Sources dir: $(Build.SourcesDirectory)"
